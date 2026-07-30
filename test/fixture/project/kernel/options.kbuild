@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Frank Secilia
+
+# Intentionally no policy: the fixture exercises KBUILD_INCLUDE projection and detached installation without changing
+# the fake kernel's compile behavior. Client projects can put ordinary native Kbuild conditionals and cc-option logic
+# here.

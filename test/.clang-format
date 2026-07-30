@@ -1,0 +1,58 @@
+---
+BasedOnStyle : LLVM
+
+# indentation and width
+ColumnLimit: 120
+IndentWidth: 4
+TabWidth: 4
+AccessModifierOffset: -4
+IndentCaseLabels: true
+IndentPPDirectives: AfterHash
+
+# alignment
+AlignAfterOpenBracket: DontAlign
+AlignEscapedNewlines : Left
+AlignOperands : DontAlign
+AlignTrailingComments: false
+PointerAlignment : Left
+QualifierAlignment : Right
+
+# brace wrapping
+BreakBeforeBraces : Custom
+BraceWrapping:
+  AfterCaseLabel : true
+  AfterClass : true
+  AfterControlStatement : true
+  AfterEnum : true
+  AfterFunction : true
+  AfterObjCDeclaration    : true
+  AfterStruct : true
+  AfterUnion : true
+  BeforeCatch : true
+  BeforeElse : true
+  SplitEmptyFunction    : false
+  SplitEmptyRecord : false
+  SplitEmptyNamespace : false
+
+# breaking and spacing
+AllowShortBlocksOnASingleLine: Always
+AllowShortCaseLabelsOnASingleLine : true
+AllowShortFunctionsOnASingleLine    : true
+AllowShortIfStatementsOnASingleLine : AllIfsAndElse
+AllowShortLoopsOnASingleLine    : true
+BreakBeforeBinaryOperators : All
+BreakStringLiterals : false
+
+# includes
+IncludeCategories:
+  - Regex : '"'
+    Priority : 1
+  - Regex : '<kontra'
+    Priority : 2
+  - Regex : '<'
+    Priority : 3
+  - Regex : '.*'
+    Priority : 63
+
+# misc
+InsertNewlineAtEOF : true

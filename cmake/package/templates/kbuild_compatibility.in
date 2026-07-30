@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: MIT
+
+# Kontraband uses these Kbuild variables to build compatible C++ flags, remove unsupported ftrace options, and keep
+# dependency tracking and objtool.
+kontra_required_kbuild_symbols = \
+    CC \
+    depfile \
+    _c_flags \
+    modkern_cflags \
+    basename_flags \
+    modname_flags \
+    target-stem \
+    cmd \
+    cmd_and_fixdep \
+    if_changed_rule \
+    $(if $(CONFIG_FUNCTION_TRACER),CC_FLAGS_FTRACE) \
+    $(if $(CONFIG_OBJTOOL),cmd_objtool cmd_gen_objtooldep) \
+    $(if $(findstring 1,$(KBUILD_EXTRA_WARN)),cmd_warn_shared_object)
+
+kontra_missing_kbuild_symbols = $(strip $(foreach symbol,$(kontra_required_kbuild_symbols),$(if $(filter undefined,$(origin $(symbol))),$(symbol))))
+
+always-y += kontra-kbuild-compatibility
+
+$(obj)/kontra-kbuild-compatibility: FORCE
+	@if test -n "$(kontra_missing_kbuild_symbols)"; then \
+		echo "Kontraband: unsupported Kbuild; missing symbols: $(kontra_missing_kbuild_symbols)" >&2; \
+		exit 1; \
+	fi
+	@touch "$@"

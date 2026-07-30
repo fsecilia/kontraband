@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MIT
+
+# Reproduce the compiler and linker families recorded by the prepared kernel without interpreting KBUILD_ARGUMENTS.
+# Mixed GNU/LLVM toolchains select each program separately. Use LLVM=1 only when both compiler and linker are LLVM.
+KONTRA_DERIVED_KBUILD_ARGUMENTS :=
+ifeq ($(CONFIG_CC_IS_CLANG),y)
+ifeq ($(CONFIG_LD_IS_LLD),y)
+KONTRA_DERIVED_KBUILD_ARGUMENTS += LLVM=1
+else
+KONTRA_DERIVED_KBUILD_ARGUMENTS += CC=clang
+endif
+else
+ifeq ($(CONFIG_LD_IS_LLD),y)
+KONTRA_DERIVED_KBUILD_ARGUMENTS += LD=ld.lld
+endif
+endif

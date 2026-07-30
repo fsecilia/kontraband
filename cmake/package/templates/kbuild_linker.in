@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: MIT
+
+# Test the linker Kbuild actually selected after applying its toolchain rules and KBUILD_ARGUMENTS.
+ifeq ($(KONTRA_VALIDATE_LINKER),1)
+kontra_linker_probe_status := $(shell $(LD) --force-group-allocation --version >/dev/null 2>&1; printf '%s' $$?)
+ifneq ($(filter 126 127,$(kontra_linker_probe_status)),)
+$(error Kontraband[missing-linker]: Kbuild linker '$(LD)' could not be executed)
+endif
+ifneq ($(kontra_linker_probe_status),0)
+$(error Kontraband[unsupported-linker]: Kbuild linker '$(LD)' does not support required option '--force-group-allocation')
+endif
+endif

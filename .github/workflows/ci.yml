@@ -1,0 +1,154 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Frank Secilia
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  # gcc/x64 build against oldest supported distro
+  debian-trixie:
+    runs-on: ubuntu-24.04
+    container: debian:trixie
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install --yes --no-install-recommends \
+            build-essential \
+            ca-certificates \
+            cmake \
+            git \
+            linux-headers-amd64 \
+            ninja-build
+
+      - uses: actions/checkout@v6
+
+      - name: Configure
+        shell: bash
+        run: |
+          kernel_dir="$(readlink -f /lib/modules/*/build | head -n 1)"
+          test -n "${kernel_dir}"
+          cmake -S . -B build -G Ninja \
+            -DKONTRABAND_BUILD_TESTS=ON \
+            -DKONTRABAND_TEST_KERNEL_BUILD_DIRECTORY="${kernel_dir}"
+
+      - name: Build and test
+        run: |
+          cmake --build build
+          ctest --test-dir build --output-on-failure
+
+  # llvm builds against trixie/{x64,arm64}
+  debian-trixie-llvm-source:
+    runs-on: ubuntu-24.04
+    container: debian:trixie
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            lto: none
+          - arch: x86_64
+            lto: thin
+          - arch: arm64
+            lto: none
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          apt-get update
+
+          packages=(
+            bc
+            bison
+            build-essential
+            ca-certificates
+            clang
+            cmake
+            flex
+            git
+            libelf-dev
+            libssl-dev
+            linux-source
+            lld
+            llvm
+            ninja-build
+            pkg-config
+            xz-utils
+          )
+
+          if [[ "${{ matrix.arch }}" == arm64 ]]; then
+            packages+=(g++-aarch64-linux-gnu)
+          fi
+
+          apt-get install --yes --no-install-recommends "${packages[@]}"
+
+      # modules_prepare does not produce Module.symvers from a full kernel build. The LLVM jobs check Clang/Kbuild
+      # compile and link compatibility. The packaged-kernel job does the strict modpost exported-symbol check.
+      - name: Prepare LLVM kernel tree
+        shell: bash
+        run: |
+          source_archive="$(find /usr/src -maxdepth 1 -name 'linux-source-*.tar.xz' -print -quit)"
+          test -n "${source_archive}"
+          mkdir -p /tmp/kernel-source /tmp/kernel-build
+          tar -xf "${source_archive}" -C /tmp/kernel-source --strip-components=1
+          make -C /tmp/kernel-source O=/tmp/kernel-build LLVM=1 ARCH="${{ matrix.arch }}" defconfig
+          /tmp/kernel-source/scripts/config --file /tmp/kernel-build/.config \
+            --enable MODULES \
+            --disable MODVERSIONS \
+            --disable DEBUG_INFO_BTF
+          if [[ "${{ matrix.lto }}" == thin ]]; then
+            /tmp/kernel-source/scripts/config --file /tmp/kernel-build/.config \
+              --disable LTO_NONE \
+              --enable LTO_CLANG_THIN
+          fi
+          make -C /tmp/kernel-source O=/tmp/kernel-build LLVM=1 ARCH="${{ matrix.arch }}" olddefconfig
+          if [[ "${{ matrix.lto }}" == thin ]]; then
+            grep -qx 'CONFIG_LTO_CLANG_THIN=y' /tmp/kernel-build/.config
+          fi
+          make -C /tmp/kernel-source O=/tmp/kernel-build LLVM=1 ARCH="${{ matrix.arch }}" modules_prepare
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DKONTRABAND_BUILD_TESTS=ON \
+            -DKONTRABAND_TEST_KERNEL_BUILD_DIRECTORY=/tmp/kernel-build \
+            -DKONTRABAND_TEST_REAL_KERNEL_ARCH="${{ matrix.arch }}" \
+            -DKONTRABAND_TEST_REAL_KERNEL_MODPOST_WARN=ON
+
+      - name: Build and test
+        run: |
+          cmake --build build
+          ctest --test-dir build --output-on-failure
+
+  # fake_kernel suite against the current stable CMake published on PyPI
+  current-cmake:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install current CMake
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends build-essential ninja-build python3-venv
+          python3 -m venv "${RUNNER_TEMP}/cmake"
+          "${RUNNER_TEMP}/cmake/bin/pip" install --disable-pip-version-check cmake
+          echo "${RUNNER_TEMP}/cmake/bin" >> "${GITHUB_PATH}"
+
+      - name: Configure
+        run: |
+          cmake --version
+          cmake -S . -B build -G Ninja -DKONTRABAND_BUILD_TESTS=ON
+
+      - name: Build and test
+        run: |
+          cmake --build build
+          ctest --test-dir build --output-on-failure

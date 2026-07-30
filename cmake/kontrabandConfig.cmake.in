@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MIT
+
+if(CMAKE_VERSION VERSION_LESS 3.31.6)
+    message(FATAL_ERROR "Kontraband requires CMake 3.31.6 or newer")
+endif()
+
+@PACKAGE_INIT@
+
+set(KONTRA_ENTRY_VERSION "@PROJECT_VERSION@")
+include("${CMAKE_CURRENT_LIST_DIR}/kontraband.cmake")
+unset(KONTRA_ENTRY_VERSION)
